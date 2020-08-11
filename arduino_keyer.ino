@@ -3,8 +3,12 @@
 
 //Whenever I get around to using that hardware
 #include <Keyboard.h>
-#include "SevSeg.h"
-SevSeg sevseg; 
+#include <SevenSeg.h>
+
+SevenSeg disp(2,3,4,5,6,7,8);
+
+const int numOfDigits=3;
+int digitPins[numOfDigits]={10,11,12};
 
 //All buttons
 #define DIT 19
@@ -19,23 +23,28 @@ float knob = 0;
 float old_knob = 0;
 
 //CW Elements Setup
-unsigned long ditMillis = 0;
-unsigned long dahMillis = 0;
+unsigned long ditMillis= 0;
+unsigned long dahMillis= 0;
 unsigned long currentMillis = 0;
-unsigned long time1 = 0;
-unsigned long time2 = 0;
+unsigned long time1= 0;
+unsigned long time2= 0;
 bool nextKey;
+//Menu Stuff
+int wpm = 25;
+int elementDit;
+unsigned long elementDah;
+unsigned long delayDit;
+unsigned long delayDah;
+int toneOut = 800;
+int menuItem;
+int menuActive = 0;
+unsigned long activeTime;
+unsigned long lastPress;
+
 
 void setup() {
 //7 Setment Hookup in 43905830495385 years
-  byte numDigits = 3;
-  byte digitPins[] = {10, 11, 12};
-  byte segmentPins[] = {2, 3, 4, 5, 6, 7, 8, 9};
-  bool resistorsOnSegments = true;
-  bool updateWithDelaysIn = true;
-  byte hardwareConfig = COMMON_CATHODE;
-  sevseg.begin(hardwareConfig, numDigits, digitPins, segmentPins, resistorsOnSegments);
-  sevseg.setBrightness(60);
+  disp.setDigitPins(numOfDigits, digitPins);
 
 //Setting up moar buddins  
   pinMode(DIT, INPUT);
@@ -48,42 +57,153 @@ void setup() {
 //idk  
   Keyboard.begin();
 
-//The CW Elements time thingy. Elements are 1200/WPM. 25WPM: Dit is 48ms, therefore needs 2 elements of cooldown. Dah is 3 elements 3*48 = 144ms. Therefore it needs 4 elements of cooldown.
+//CW Speed: Elements = 1200/WPM. Dit is 1 element. Dah is 3 elements. The pause must be the sent signal + one element.
+  elementDit = (1200 / (wpm));
+  elementDah = ((elementDit) * 3);
+  delayDit = ((elementDit) * 2);
+  delayDah = ((elementDah) + (elementDit));
+
+//Innefficient way to check if you should key or not. 
   currentMillis = millis();
-  time1 = (currentMillis - (ditMillis - 96));
-  time2 = (currentMillis - (dahMillis - 192));
+  time1 = (currentMillis - (ditMillis - delayDit));
+  time2 = (currentMillis - (dahMillis - delayDah));
   nextKey = true;
+//TOT Timer  
+  activeTime = (millis() - lastPress); 
+
 }
 
 void loop() {
 
-//If there is time left on the delay between elements, nextKey will be false.
-  if((time1 && time2) >= 0) 
-  {
-     nextKey = true;
-    }
-    else 
-    {
-     nextKey = false;
-    }
-
-//last digit of tone is the duration of the dah and dit.    
+//Dit and Dahs   
   if(digitalRead(DIT) == LOW)
   {
-    if (nextKey = false) {
-      tone(BEEP, 800, 48);
-      ditMillis = millis();
+    if((time1 && time2) >= 0)
+    {
+      tone(BEEP, toneOut, elementDit);
+      ditMillis = millis();  
     }
   }
 
   if(digitalRead(DAH) == LOW)
   {
-    if (nextKey = false) {
-      tone(BEEP, 800, 144); 
+    if((time1 && time2) >= 0) 
+    {
+      tone(BEEP, toneOut, elementDah); 
       dahMillis = millis();
     }
   }
 
+  knob = (float)(enc.read());
+  
+//https://youtu.be/poz6W0znOfk?t=3 I hate myself - This is the menu
+  if(menuActive = 0)
+  {
+    if(digitalRead(PUSH) == LOW)
+    {
+      disp.write(menuItem);
+      menuActive = 1;
+      lastPress = millis();
+    }
+  }  
+  if(menuActive = 1)
+  {
+    if(knob != old_knob)
+    {
+      if(knob > old_knob)
+      {
+        menuItem = (menuItem + 1);
+        disp.write(menuItem);
+        lastPress = millis(); 
+      }
+      else
+      {
+        menuItem = (menuItem - 1);
+        disp.write(menuItem);
+        lastPress = millis();
+      }
+    }    
+    if(menuItem >= 4)
+    {
+      menuItem = 0; 
+    }
+    if(menuItem <= -1)
+    {
+      menuItem = 3;   
+    }
+    if(digitalRead(PUSH) == LOW)
+    {
+      if(activeTime >= 500)
+      {
+        menuActive = 2;
+        lastPress = millis(); 
+      }
+    }
+    if(activeTime >= 10000)
+    {
+      menuActive = 0;
+    }
+  }
+  if(menuActive = 2)
+  {
+    if(menuItem = 0)
+    {
+      disp.write(wpm);
+      if(knob != old_knob)
+      {
+        if(knob > old_knob)
+        {
+          wpm = (wpm + 1);
+          disp.write(elementDit);
+          lastPress = millis();  
+        }
+        else
+        {
+          wpm = (wpm - 1);
+          disp.write(elementDit);
+          lastPress = millis();
+        }
+      }
+      if(wpm <= 0)
+      {
+        wpm = 1;
+      }
+    }
+    if(menuItem = 1)
+    {
+      disp.write(toneOut);
+      if(knob != old_knob)
+      {
+        if(knob > old_knob)
+        {
+          toneOut = (toneOut + 10);
+          disp.write(toneOut);
+          lastPress = millis();  
+        }
+        else
+        {
+          toneOut = (toneOut - 10);
+          disp.write(toneOut);
+          lastPress = millis();
+        }
+      }
+      if(toneOut <= 0)
+      {
+        toneOut = 10; 
+      }
+    }
+//Woah the future! Come back soon to find out!    
+    if(menuItem = 2)
+    {
+    }
+    if(menuItem = 3)
+    { 
+    }
+    if(activeTime >= 5000)
+    {
+      menuActive = 1;
+    }
+  }
 }
 
 //I hate coding.
