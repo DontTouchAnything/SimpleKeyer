@@ -40,6 +40,8 @@ int menuItem;
 int menuActive = 0;
 unsigned long activeTime;
 unsigned long lastPress;
+bool reverse = false;
+bool polarSwitch = false;
 
 
 void setup() {
@@ -53,9 +55,6 @@ void setup() {
   digitalWrite(DIT, HIGH);
   digitalWrite(DAH, HIGH);
   digitalWrite(PUSH, HIGH);
-
-//idk  
-  Keyboard.begin();
 
 //CW Speed: Elements = 1200/WPM. Dit is 1 element. Dah is 3 elements. The pause must be the sent signal + one element.
   elementDit = (1200 / (wpm));
@@ -76,22 +75,72 @@ void setup() {
 void loop() {
 
 //Dit and Dahs   
-  if(digitalRead(DIT) == LOW)
+  if(polarSwitch = true)
   {
-    if((time1 && time2) >= 0)
+    if(digitalRead(DIT) == HIGH)
     {
-      tone(BEEP, toneOut, elementDit);
-      ditMillis = millis();  
+      if((time1 && time2) >= 0)
+      {
+        if(reverse = true)
+        {
+          tone(BEEP, toneOut, elementDah);
+          dahMillis = millis();
+        }
+        else
+        {
+          tone(BEEP, toneOut, elementDit);
+        }
+      }
+    }
+    if(digitalRead(DAH) == HIGH)
+    {
+      if((time1 && time2) >= 0)
+      {
+        if(reverse = true)
+        {
+          tone(BEEP, toneOut, elementDit);
+        }
+        else
+        {
+          tone(BEEP, toneOut, elementDah);
+        }
+      }
     }
   }
-
-  if(digitalRead(DAH) == LOW)
+  else
   {
-    if((time1 && time2) >= 0) 
+    if(digitalRead(DIT) == LOW)
     {
-      tone(BEEP, toneOut, elementDah); 
-      dahMillis = millis();
+      if((time1 && time2) >= 0)
+      {
+        if(reverse = true)
+        {
+          tone(BEEP, toneOut, elementDah);
+          dahMillis = millis();
+        }  
+        else
+        {
+          tone(BEEP, toneOut, elementDit);
+          ditMillis = millis();
+        }
+      }  
     }
+    if(digitalRead(DAH) == LOW)
+    {
+      if((time1 && time2) >= 0) 
+      {
+        if(reverse = true)
+        {
+          tone(BEEP, toneOut, elementDit); 
+          ditMillis = millis();
+        }
+        else
+        {
+          tone(BEEP, toneOut, elementDah); 
+          dahMillis = millis();
+        }
+      }
+    }  
   }
 
   knob = (float)(enc.read());
@@ -142,6 +191,7 @@ void loop() {
     if(activeTime >= 10000)
     {
       menuActive = 0;
+      //insert the clear disp thing whenever I get my hardware assembled...
     }
   }
   if(menuActive = 2)
@@ -195,10 +245,37 @@ void loop() {
 //Woah the future! Come back soon to find out!    
     if(menuItem = 2)
     {
+      if(knob != old_knob)
+      {
+        if(knob > old_knob)
+        {
+          reverse = true;
+          disp.write(1);
+          lastPress = millis();
+        }
+        else
+        {
+          reverse = false;
+          disp.write(0);
+          lastPress = millis();
+        }
+      }
     }
     if(menuItem = 3)
     { 
+      polarSwitch = true;
+      disp.write(1);
+      lastPress = millis();
+
     }
+    else
+    {
+      polarSwitch = false;
+      disp.write(0);
+      lastPress = millis();
+
+    }  
+
     if(activeTime >= 5000)
     {
       menuActive = 1;
